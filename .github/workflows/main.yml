@@ -1,50 +1,21 @@
-name: Build and Deploy to Cloud Run
+name: MLTB IMG
 
-on:
-  push:
-    branches:
-      - main  # (သို့မဟုတ် master - ကိုယ့်ရဲ့ default branch နာမည်နဲ့ ပြောင်းပေးပါ)
-
-env:
-  PROJECT_ID: my-v2ray-proxy          # your Google Cloud Project ID
-  REGION: us-central1                 # your Cloud Run region
-  SERVICE_NAME: v2ray-proxy           # your Cloud Run service name
-
+on: workflow_dispatch
+      
 jobs:
-  deploy:
+  build:
+
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v3
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PW }}
+    - name: Building docker
+      run: docker image build . -t "${{ secrets.DOCKER_HUB_USERNAME }}"/mltb:dlolote
 
-      - name: Google Auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Authorize Docker push
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }}
-
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          region: ${{ env.REGION }}
-          flags: '--allow-unauthenticated'
+    - name: Pushing docker to docker.io
+      run: docker push "${{ secrets.DOCKER_HUB_USERNAME }}"/mltb:dlolote
